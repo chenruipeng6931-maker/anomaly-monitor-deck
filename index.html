@@ -334,7 +334,7 @@ kbd{font-family:var(--mono);font-size:14px;color:var(--text);background:var(--su
 .matrix{display:grid;grid-template-columns:56px 1fr 1fr;grid-template-rows:auto 1fr 1fr;gap:8px}
 .matrix .corner{grid-row:1;grid-column:1}
 .matrix .ax-x{text-align:center;font-size:13px;color:var(--text-3);letter-spacing:.5px;align-self:center}
-.matrix .ax-y{writing-mode:vertical-rl;transform:rotate(180deg);text-align:center;font-size:13px;color:var(--text-3);letter-spacing:2px;align-self:center;justify-self:center}
+.matrix .ax-y{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-size:13px;color:var(--text-3);align-self:center;justify-self:center;line-height:1.2}
 .mx-cell{border:1px solid var(--border);border-radius:11px;padding:14px 14px;background:var(--surface);min-height:96px;transition:.15s;cursor:default}
 .mx-cell:hover{border-color:var(--border-strong);background:var(--surface-2)}
 .mx-cell .mx-t{font-size:16px;font-weight:800;color:#fff}
@@ -563,10 +563,10 @@ kbd{font-family:var(--mono);font-size:14px;color:var(--text);background:var(--su
               <div class="corner"></div>
               <div class="ax-x">低概率</div>
               <div class="ax-x">高概率</div>
-              <div class="ax-y">高影响</div>
+              <div class="ax-y"><span>高</span><span>影</span><span>响</span></div>
               <div class="mx-cell p2"><div class="mx-t">漏报</div><div class="mx-d">错过关键风险，事后损失最大</div></div>
               <div class="mx-cell p1"><div class="mx-t">合规</div><div class="mx-d">监管红线，架构层内置四红线</div></div>
-              <div class="ax-y">低影响</div>
+              <div class="ax-y"><span>低</span><span>影</span><span>响</span></div>
               <div class="mx-cell" style="opacity:.55"><div class="mx-t">信号噪声</div><div class="mx-d">低优先 · 折叠不打扰</div></div>
               <div class="mx-cell p3"><div class="mx-t">误报</div><div class="mx-d">打扰与信任流失，自动降级</div></div>
             </div>
@@ -576,7 +576,7 @@ kbd{font-family:var(--mono);font-size:14px;color:var(--text);background:var(--su
             <h3>产品评估与评测</h3>
             <div class="metric-list">
               <div class="metric"><span class="mi">①</span><span class="mt">功能渗透率</span><span class="md">核心功能被多少人真正用起来</span></div>
-              <div class="metric"><span class="mi">②</span><span class="mt">推送实际打开率</span><span class="md">信噪比本身，就是付费点</span></div>
+              <div class="metric"><span class="mi">②</span><span class="mt">推送实际打开率</span><span class="md">信噪比本身，就是亮点</span></div>
               <div class="metric"><span class="mi">③</span><span class="mt">使用前后腾讯自选股留存 / 日活</span><span class="md">宿主内留存与活跃变化</span></div>
               <div class="metric"><span class="mi">④</span><span class="mt">用户评价率</span><span class="md">口碑与信任的代理指标</span></div>
             </div>
