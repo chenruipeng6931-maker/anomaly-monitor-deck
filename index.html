@@ -1,0 +1,975 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>自选异动监测 · AI 管家 · 动态演示</title>
+<style>
+/* ============================================================
+   设计系统（深色金融科技主题）
+   ============================================================ */
+:root{
+  --bg:#070b15;
+  --bg-2:#0b1120;
+  --surface:#111a2e;
+  --surface-2:#18233c;
+  --surface-3:#1f2c49;
+  --border:rgba(255,255,255,.08);
+  --border-strong:rgba(255,255,255,.15);
+  --text:#eef2f9;
+  --text-2:#aab6ca;
+  --text-3:#6e7b94;
+  --accent:#4c8dff;
+  --accent-2:#35c8ee;
+  --gold:#f6c453;
+  --violet:#8b7cf6;
+  --high:#ff5d5d;
+  --mid:#ffb02e;
+  --low:#2fd6a4;
+  --up:#ff5d5d;
+  --down:#2fd6a4;
+  --radius:16px;
+  --radius-s:10px;
+  --shadow:0 20px 50px -20px rgba(0,0,0,.6);
+  --mono:"SFMono-Regular","JetBrains Mono",Consolas,"Courier New",monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  background:var(--bg);
+  color:var(--text);
+  font-family:-apple-system,"PingFang SC","Microsoft YaHei","Segoe UI",Roboto,sans-serif;
+  overflow:hidden;
+  -webkit-font-smoothing:antialiased;
+  text-rendering:optimizeLegibility;
+}
+
+/* ---------- 背景氛围 ---------- */
+.bg-glow{position:fixed;inset:0;pointer-events:none;z-index:0;overflow:hidden}
+.bg-glow::before{
+  content:"";position:absolute;width:60vw;height:60vw;left:-15vw;top:-20vw;
+  background:radial-gradient(circle,rgba(76,141,255,.16),transparent 65%);filter:blur(20px);
+}
+.bg-glow::after{
+  content:"";position:absolute;width:55vw;height:55vw;right:-18vw;bottom:-22vw;
+  background:radial-gradient(circle,rgba(53,200,238,.12),transparent 65%);filter:blur(20px);
+}
+.bg-grid{
+  position:fixed;inset:0;pointer-events:none;z-index:0;opacity:.35;
+  background-image:
+    linear-gradient(rgba(255,255,255,.025) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(255,255,255,.025) 1px,transparent 1px);
+  background-size:56px 56px;
+  mask-image:radial-gradient(ellipse at 50% 40%,#000 30%,transparent 80%);
+}
+
+/* ---------- 顶栏 ---------- */
+.topbar{
+  position:fixed;top:0;left:0;right:0;height:56px;z-index:50;
+  display:flex;align-items:center;gap:16px;padding:0 24px;
+  background:rgba(7,11,21,.72);backdrop-filter:blur(14px);border-bottom:1px solid var(--border);
+}
+.brand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:16.5px;letter-spacing:.3px}
+.brand-mark{
+  width:30px;height:30px;border-radius:9px;flex-shrink:0;
+  background:linear-gradient(135deg,var(--accent),var(--accent-2));
+  display:flex;align-items:center;justify-content:center;color:#fff;
+  box-shadow:0 6px 16px -6px rgba(76,141,255,.7);
+}
+.brand-mark svg{width:17px;height:17px}
+.brand-sub{font-weight:400;font-size:15px;color:var(--text-3)}
+.topbar-right{margin-left:auto;display:flex;align-items:center;gap:14px}
+.timer{
+  display:flex;align-items:center;gap:8px;cursor:pointer;user-select:none;
+  font-variant-numeric:tabular-nums;font-family:var(--mono);font-size:17px;
+  color:var(--text-2);background:var(--surface);padding:6px 12px;border-radius:9px;border:1px solid var(--border);
+}
+.timer:hover{border-color:var(--border-strong)}
+.timer .dot{width:7px;height:7px;border-radius:50%;background:var(--low)}
+.timer.paused .dot{background:var(--mid)}
+.timer small{font-size:13px;color:var(--text-3);font-family:inherit}
+.hint-btn{
+  font-size:14px;color:var(--text-3);background:transparent;border:1px solid var(--border);
+  padding:6px 10px;border-radius:8px;cursor:pointer;transition:.15s;
+}
+.hint-btn:hover{color:var(--text);border-color:var(--border-strong)}
+
+/* ---------- 进度条 ---------- */
+.progress{position:fixed;top:56px;left:0;right:0;height:2px;z-index:50;background:rgba(255,255,255,.06)}
+.progress-fill{height:100%;background:linear-gradient(90deg,var(--accent),var(--accent-2));transition:width .35s cubic-bezier(.4,0,.2,1)}
+
+/* ---------- 幻灯片容器 ---------- */
+.deck{position:fixed;inset:56px 0 64px 0;z-index:1;perspective:1400px}
+.slide{
+  position:absolute;inset:0;display:flex;flex-direction:column;
+  padding:clamp(20px,4vw,64px) clamp(20px,5vw,88px);
+  opacity:0;visibility:hidden;transform:translateX(40px) scale(.985);
+  transition:opacity .45s cubic-bezier(.4,0,.2,1),transform .45s cubic-bezier(.4,0,.2,1),visibility 0s .45s;
+  overflow:hidden;
+}
+.slide.active{opacity:1;visibility:visible;transform:none;transition-delay:0s}
+.slide.prev{transform:translateX(-40px) scale(.985)}
+
+.slide-inner{width:100%;max-width:1200px;margin:0 auto;display:flex;flex-direction:column;height:100%;transform-origin:top center}
+.kicker{
+  display:inline-flex;align-items:center;gap:8px;font-size:15px;font-weight:600;
+  letter-spacing:2px;color:var(--accent-2);text-transform:uppercase;margin-bottom:14px;
+}
+.kicker::before{content:"";width:22px;height:2px;background:var(--accent-2);border-radius:2px}
+.slide-title{font-size:clamp(34px,4.6vw,60px);font-weight:800;line-height:1.16;letter-spacing:.5px}
+.slide-title .hl{background:linear-gradient(120deg,var(--accent),var(--accent-2));-webkit-background-clip:text;background-clip:text;color:transparent}
+.slide-sub{font-size:clamp(18px,1.9vw,22px);color:var(--text-2);margin-top:12px;max-width:760px;line-height:1.65}
+.slide-body{flex:1;margin-top:26px;min-height:0;display:flex;flex-direction:column}
+
+/* ---------- 进入动画 ---------- */
+@keyframes rise{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:none}}
+.slide .rise{opacity:0}
+.slide.active .rise{animation:rise .6s cubic-bezier(.4,0,.2,1) forwards}
+
+/* ---------- 通用组件 ---------- */
+.grid{display:grid;gap:16px}
+.cols-2{grid-template-columns:1fr 1fr}
+.cols-3{grid-template-columns:repeat(3,1fr)}
+@media(max-width:820px){.cols-2,.cols-3{grid-template-columns:1fr}}
+
+.card{
+  background:linear-gradient(180deg,var(--surface),var(--surface-2));
+  border:1px solid var(--border);border-radius:var(--radius);padding:22px;
+  position:relative;overflow:hidden;
+}
+.card::before{content:"";position:absolute;inset:0 0 auto 0;height:1px;
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,.14),transparent)}
+.card h3{font-size:21px;font-weight:700;margin-bottom:14px;display:flex;align-items:center;gap:9px}
+.card p{color:var(--text-2);line-height:1.7;font-size:17px}
+.card .lead{font-size:19px;color:var(--text);font-weight:600;line-height:1.7}
+
+.pill{display:inline-flex;align-items:center;gap:6px;font-size:14px;font-weight:600;padding:4px 10px;border-radius:999px;border:1px solid var(--border);color:var(--text-2);white-space:nowrap}
+.pill.high{color:#fff;background:rgba(255,93,93,.16);border-color:rgba(255,93,93,.4)}
+.pill.mid{color:var(--mid);background:rgba(255,176,46,.14);border-color:rgba(255,176,46,.4)}
+.pill.low{color:var(--low);background:rgba(47,214,164,.14);border-color:rgba(47,214,164,.4)}
+.pill.gold{color:var(--gold);background:rgba(246,196,83,.14);border-color:rgba(246,196,83,.4)}
+.pill.ghost{color:var(--text-3)}
+
+.tag{font-size:13px;font-weight:700;letter-spacing:.5px;padding:2px 8px;border-radius:5px}
+.tag.high{color:#fff;background:var(--high)}
+.tag.mid{color:#241500;background:var(--mid)}
+.tag.low{color:#032a1e;background:var(--low)}
+
+/* 表格 */
+.table{width:100%;border-collapse:collapse;font-size:16.5px}
+.table th{text-align:left;padding:11px 14px;font-size:14px;font-weight:600;letter-spacing:.6px;color:var(--text-3);text-transform:uppercase;border-bottom:1px solid var(--border-strong);white-space:nowrap}
+.table td{padding:12px 14px;border-bottom:1px solid var(--border);color:var(--text-2);line-height:1.55;vertical-align:top}
+.table td b,.table td strong{color:var(--text)}
+.table tr:last-child td{border-bottom:none}
+.table tr:hover td{background:rgba(255,255,255,.02)}
+
+/* 金句 */
+.quote{
+  margin-top:auto;padding:18px 22px;border-left:3px solid var(--gold);
+  background:linear-gradient(90deg,rgba(246,196,83,.1),transparent);
+  border-radius:0 var(--radius) var(--radius) 0;
+}
+.quote .q{font-size:clamp(19px,2.4vw,28px);font-weight:700;line-height:1.5;color:#fff}
+.quote .a{font-size:15px;color:var(--text-3);margin-top:6px}
+
+/* 证据/备注 */
+.note{margin-top:16px;font-size:14.5px;color:var(--text-3);line-height:1.6;display:flex;gap:7px;align-items:flex-start}
+.note svg{flex-shrink:0;margin-top:2px;opacity:.7}
+.note b{color:var(--text-2);font-weight:600}
+
+/* ---------- 翻页控件 ---------- */
+.footer{
+  position:fixed;left:0;right:0;bottom:0;height:64px;z-index:50;
+  display:flex;align-items:center;gap:16px;padding:0 24px;
+  background:rgba(7,11,21,.72);backdrop-filter:blur(14px);border-top:1px solid var(--border);
+}
+.counter{font-variant-numeric:tabular-nums;font-family:var(--mono);font-size:16px;color:var(--text-3)}
+.counter b{color:var(--text);font-size:16.5px}
+.dots{display:flex;align-items:center;gap:6px;flex:1;justify-content:center;flex-wrap:wrap}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--surface-3);cursor:pointer;transition:.2s;border:none;padding:0}
+.dot:hover{background:var(--text-3)}
+.dot.active{background:var(--accent);box-shadow:0 0 0 3px rgba(76,141,255,.2);transform:scale(1.25)}
+.nav-btn{
+  width:40px;height:40px;border-radius:11px;border:1px solid var(--border);
+  background:var(--surface);color:var(--text-2);cursor:pointer;display:flex;
+  align-items:center;justify-content:center;transition:.15s;
+}
+.nav-btn:hover{color:#fff;border-color:var(--border-strong);background:var(--surface-2)}
+.nav-btn svg{width:18px;height:18px}
+
+/* ---------- 浮层 ---------- */
+.overlay{
+  position:fixed;inset:0;z-index:100;background:rgba(5,8,15,.86);backdrop-filter:blur(10px);
+  display:none;opacity:0;transition:opacity .3s;
+}
+.overlay.show{display:flex;opacity:1;align-items:center;justify-content:center;padding:40px}
+.overlay-panel{
+  width:100%;max-width:880px;max-height:88vh;overflow:auto;background:var(--bg-2);
+  border:1px solid var(--border-strong);border-radius:20px;padding:30px;box-shadow:var(--shadow);
+  animation:pop .28s cubic-bezier(.4,0,.2,1);
+}
+@keyframes pop{from{transform:translateY(12px) scale(.98);opacity:0}to{transform:none;opacity:1}}
+.overlay-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px}
+.overlay-head h2{font-size:22px;font-weight:800}
+.overlay-close{width:34px;height:34px;border-radius:9px;border:1px solid var(--border);background:var(--surface);color:var(--text-2);cursor:pointer;font-size:17.5px}
+.overlay-close:hover{color:#fff;border-color:var(--border-strong)}
+
+.ov-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+@media(max-width:820px){.ov-grid{grid-template-columns:repeat(2,1fr)}}
+.ov-item{background:var(--surface);border:1px solid var(--border);border-radius:13px;padding:16px;cursor:pointer;transition:.15s;position:relative}
+.ov-item:hover{border-color:var(--accent);transform:translateY(-3px);background:var(--surface-2)}
+.ov-item .no{font-family:var(--mono);font-size:14px;color:var(--accent-2);font-weight:700}
+.ov-item .t{font-size:16.5px;font-weight:700;margin-top:6px;line-height:1.4}
+.ov-item .s{font-size:14px;color:var(--text-3);margin-top:5px}
+.ov-item.active{border-color:var(--accent);box-shadow:0 0 0 2px rgba(76,141,255,.25)}
+
+.notes-body{font-size:16.5px;line-height:1.85;color:var(--text-2)}
+.notes-body b{color:var(--text)}
+.notes-body .seg{margin-bottom:14px;padding-left:14px;border-left:2px solid var(--surface-3)}
+.notes-body .seg b.t{color:var(--accent-2)}
+
+.help-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px 24px;margin-top:14px}
+@media(max-width:820px){.help-grid{grid-template-columns:1fr}}
+.help-row{display:flex;align-items:center;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--border);font-size:16.5px}
+.help-row .k{display:flex;gap:6px}
+kbd{font-family:var(--mono);font-size:14px;color:var(--text);background:var(--surface-3);border:1px solid var(--border-strong);border-bottom-width:2px;border-radius:6px;padding:2px 7px}
+
+/* ---------- 英雄（封面） ---------- */
+.hero{display:flex;flex-direction:column;justify-content:center;height:100%;position:relative}
+.hero-big{font-size:clamp(42px,6.2vw,84px);font-weight:900;line-height:1.12;letter-spacing:.5px}
+.hero-big .hl{background:linear-gradient(120deg,var(--accent),var(--accent-2));-webkit-background-clip:text;background-clip:text;color:transparent}
+.hero-sub{font-size:clamp(19px,2vw,24px);color:var(--text-2);margin-top:20px;max-width:640px;line-height:1.75}
+.hero-scene{margin-top:36px;display:flex;flex-wrap:wrap;gap:12px}
+.scene-chip{
+  display:flex;align-items:center;gap:10px;background:var(--surface);border:1px solid var(--border);
+  border-radius:12px;padding:13px 18px;font-size:17px;color:var(--text-2);
+}
+
+/* 封面：被看见 → 被理解 */
+.morph{display:flex;align-items:center;gap:18px;margin-top:26px;flex-wrap:wrap}
+.morph .ms{font-size:clamp(22px,2.6vw,30px);font-weight:800;padding:10px 22px;border-radius:14px}
+.morph .ms.from{color:var(--text-3);border:1px solid var(--border);background:var(--surface)}
+.morph .ms.to{color:#fff;border:1px solid rgba(76,141,255,.5);background:linear-gradient(120deg,rgba(76,141,255,.22),rgba(53,200,238,.22));box-shadow:0 0 30px -6px rgba(76,141,255,.5)}
+.morph .arrow{font-size:26px;color:var(--accent-2);animation:slide 1.6s ease-in-out infinite}
+@keyframes slide{0%,100%{transform:translateX(-4px);opacity:.55}50%{transform:translateX(6px);opacity:1}}
+
+/* 团队成员 */
+.team{margin-top:40px;display:flex;flex-wrap:wrap;gap:10px}
+.team .scene-chip{font-size:16px;padding:11px 16px}
+.team .scene-chip .ic{width:30px;height:30px;border-radius:9px;display:flex;align-items:center;justify-content:center;background:rgba(76,141,255,.14);flex-shrink:0}
+.team .scene-chip .ic b{font-size:15px}
+
+/* ---------- 问题卡片（页2） ---------- */
+.q-card{
+  background:linear-gradient(180deg,var(--surface),var(--surface-2));
+  border:1px solid var(--border);border-radius:var(--radius);padding:30px 26px;
+  position:relative;overflow:hidden;display:flex;flex-direction:column;gap:16px;
+  min-height:240px;transition:transform .2s,border-color .2s;
+}
+.q-card::before{content:"";position:absolute;inset:0 0 auto 0;height:1px;background:linear-gradient(90deg,transparent,rgba(255,255,255,.14),transparent)}
+.q-card:hover{transform:translateY(-4px);border-color:var(--border-strong)}
+.q-card .qn{
+  font-family:var(--mono);font-size:15px;font-weight:700;color:var(--accent-2);
+  letter-spacing:1px;
+}
+.q-card .qt{font-size:clamp(22px,2.4vw,28px);font-weight:800;line-height:1.4;color:#fff}
+.q-card .qd{font-size:16px;color:var(--text-3);line-height:1.65;margin-top:auto}
+.q-card .qmark{position:absolute;right:14px;top:10px;font-size:90px;font-weight:900;color:var(--surface-3);line-height:1}
+
+/* ---------- 市场分析：产品卡（页3） ---------- */
+.prod-card{
+  background:linear-gradient(180deg,var(--surface),var(--surface-2));
+  border:1px solid var(--border);border-radius:var(--radius);padding:24px 22px;
+  position:relative;overflow:hidden;cursor:pointer;transition:transform .2s,border-color .2s;
+  display:flex;flex-direction:column;gap:10px;
+}
+.prod-card::before{content:"";position:absolute;inset:0 0 auto 0;height:1px;background:linear-gradient(90deg,transparent,rgba(255,255,255,.14),transparent)}
+.prod-card:hover{transform:translateY(-4px);border-color:var(--accent)}
+.prod-card.active{border-color:var(--accent);box-shadow:0 0 0 2px rgba(76,141,255,.22)}
+.prod-card .pc-ic{font-size:32px}
+.prod-card .pc-name{font-size:21px;font-weight:800}
+.prod-card .pc-adv{font-size:15.5px;color:var(--text-2)}
+.prod-card .pc-out{margin-top:4px;font-size:15.5px;color:var(--text-3)}
+.prod-card .pc-out b{color:var(--accent-2);font-size:16.5px}
+.prod-card .pc-gap{margin-top:8px;font-size:14px;color:var(--high);border-top:1px dashed rgba(255,93,93,.3);padding-top:10px;opacity:0;transition:opacity .3s}
+.prod-card.active .pc-gap{opacity:1}
+
+/* 共同空白 · 链路 */
+.gap-box{margin-top:22px;background:linear-gradient(180deg,rgba(255,93,93,.05),transparent);border:1px solid rgba(255,93,93,.22);border-radius:var(--radius);padding:20px 22px}
+.gap-head{font-size:15px;font-weight:700;letter-spacing:1.5px;color:var(--high);display:flex;align-items:center;gap:8px;margin-bottom:16px}
+.gap-head::before{content:"";width:18px;height:2px;background:var(--high);border-radius:2px}
+.chain{display:flex;align-items:stretch;gap:0;flex-wrap:wrap}
+.chain-node{
+  flex:1;min-width:150px;text-align:center;padding:16px 14px;border-radius:13px;
+  border:1px solid var(--border);background:var(--surface);position:relative;
+}
+.chain-node .cn-h{font-size:17px;font-weight:800;margin-bottom:6px;display:flex;align-items:center;justify-content:center;gap:6px}
+.chain-node .cn-d{font-size:14.5px;color:var(--text-3);line-height:1.5}
+.chain-node.ok .cn-h{color:var(--low)}
+.chain-node.miss{border-color:var(--high);background:linear-gradient(180deg,rgba(255,93,93,.14),rgba(255,93,93,.04));box-shadow:0 0 24px -8px rgba(255,93,93,.6)}
+.chain-node.miss .cn-h{color:var(--high);animation:blink 1.4s ease-in-out infinite}
+.chain-arrow{display:flex;align-items:center;padding:0 8px;color:var(--text-3);font-size:22px;flex-shrink:0}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.45}}
+
+/* ---------- 核心痛点：三环（页4） ---------- */
+.pain-steps{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+@media(max-width:820px){.pain-steps{grid-template-columns:1fr}}
+.pain-step{
+  border:1px solid var(--border);border-radius:var(--radius);padding:24px 20px;text-align:center;
+  background:linear-gradient(180deg,var(--surface),var(--surface-2));position:relative;overflow:hidden;
+}
+.pain-step .ps-no{font-family:var(--mono);font-size:15px;color:var(--accent-2);font-weight:700}
+.pain-step .ps-q{font-size:19px;font-weight:800;margin-top:12px;color:#fff;line-height:1.5}
+.pain-step .ps-s{font-size:15px;margin-top:10px;font-weight:700}
+.pain-step.done .ps-s{color:var(--low)}
+.pain-step.miss{border-color:var(--high);box-shadow:0 0 28px -10px rgba(255,93,93,.55)}
+.pain-step.miss .ps-s{color:var(--high)}
+
+/* ---------- 功能定位：不是 / 而是（页5） ---------- */
+.vs-grid{grid-template-columns:1fr 1fr;align-items:stretch}
+.vs{
+  border-radius:var(--radius);padding:30px 28px;position:relative;overflow:hidden;
+  display:flex;flex-direction:column;gap:16px;min-height:280px;
+}
+.vs.not{background:linear-gradient(180deg,rgba(255,93,93,.08),transparent);border:1px solid rgba(255,93,93,.28)}
+.vs.is{background:linear-gradient(180deg,rgba(47,214,164,.08),transparent);border:1px solid rgba(47,214,164,.3);box-shadow:0 0 34px -12px rgba(47,214,164,.4)}
+.vs .vs-tag{font-size:15px;font-weight:800;letter-spacing:1px}
+.vs.not .vs-tag{color:var(--high)}
+.vs.is .vs-tag{color:var(--low)}
+.vs .vs-h{font-size:clamp(20px,2.2vw,26px);font-weight:800;color:#fff;line-height:1.5}
+.vs .vs-h .m{color:var(--text-3);text-decoration:line-through;text-decoration-color:rgba(255,93,93,.5)}
+.vs .vs-h .hl-ok{color:var(--low)}
+.vs ul{list-style:none;display:flex;flex-direction:column;gap:10px}
+.vs ul li{font-size:16.5px;color:var(--text-2);line-height:1.6;padding-left:24px;position:relative}
+.vs ul li::before{content:"";position:absolute;left:0;top:9px;width:8px;height:8px;border-radius:50%}
+.vs.not ul li::before{background:var(--high)}
+.vs.is ul li::before{background:var(--low)}
+
+/* ---------- 演示：卡片流 + 详情（页6） ---------- */
+.event-card{
+  background:var(--surface-3);border:1px solid var(--border);border-radius:13px;padding:16px;
+  cursor:pointer;transition:.15s;border-left:3px solid transparent;
+}
+.event-card:hover{transform:translateY(-2px);border-color:var(--border-strong)}
+.event-card.high{border-left-color:var(--high)}
+.event-card.mid{border-left-color:var(--mid)}
+.event-card.low{border-left-color:var(--low)}
+.event-card.selected{border-color:var(--accent);box-shadow:0 0 0 2px rgba(76,141,255,.25)}
+.event-card .top{display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap}
+.event-card .nm{font-size:17px;font-weight:700}
+.event-card .cd{font-size:13.5px;color:var(--text-3);font-family:var(--mono)}
+.event-card .ev{font-size:16px;color:var(--text-2);line-height:1.55}
+.event-card .meta{display:flex;align-items:center;gap:10px;margin-top:10px;font-size:14px;color:var(--text-3);flex-wrap:wrap}
+.event-card .src{font-size:13.5px;color:var(--accent-2)}
+
+.four-seg{display:flex;flex-direction:column;gap:10px}
+.fs-item{display:flex;gap:14px;padding:14px 16px;border-radius:12px;background:var(--surface-3);border:1px solid var(--border);transition:.15s}
+.fs-item .no{
+  width:26px;height:26px;border-radius:8px;flex-shrink:0;display:flex;align-items:center;justify-content:center;
+  font-size:15px;font-weight:800;font-family:var(--mono);
+}
+.fs-item.fact .no{background:rgba(53,200,238,.18);color:var(--accent-2)}
+.fs-item.infer .no{background:rgba(139,124,246,.2);color:var(--violet)}
+.fs-item.warn .no{background:rgba(246,196,83,.18);color:var(--gold)}
+.fs-item .h{font-size:16px;font-weight:700;display:flex;align-items:center;gap:8px}
+.fs-item .b{font-size:16px;color:var(--text-2);line-height:1.65;margin-top:4px}
+.fs-item .b b{color:var(--text)}
+.evidence{margin-top:12px;background:var(--bg-2);border:1px solid var(--border-strong);border-radius:12px;padding:14px 16px}
+.evidence .ev-t{font-size:15px;font-weight:700;color:var(--accent-2);margin-bottom:6px}
+.evidence .ev-s{font-size:14px;color:var(--text-3);font-family:var(--mono)}
+
+/* ---------- 风险矩阵（页7） ---------- */
+.matrix{display:grid;grid-template-columns:56px 1fr 1fr;grid-template-rows:auto 1fr 1fr;gap:8px}
+.matrix .corner{grid-row:1;grid-column:1}
+.matrix .ax-x{text-align:center;font-size:13px;color:var(--text-3);letter-spacing:.5px;align-self:center}
+.matrix .ax-y{writing-mode:vertical-rl;transform:rotate(180deg);text-align:center;font-size:13px;color:var(--text-3);letter-spacing:2px;align-self:center;justify-self:center}
+.mx-cell{border:1px solid var(--border);border-radius:11px;padding:14px 14px;background:var(--surface);min-height:96px;transition:.15s;cursor:default}
+.mx-cell:hover{border-color:var(--border-strong);background:var(--surface-2)}
+.mx-cell .mx-t{font-size:16px;font-weight:800;color:#fff}
+.mx-cell .mx-d{font-size:14px;color:var(--text-3);margin-top:4px;line-height:1.5}
+.mx-cell.p1{border-color:var(--high);background:linear-gradient(180deg,rgba(255,93,93,.14),rgba(255,93,93,.03))}
+.mx-cell.p1 .mx-t{color:var(--high)}
+.mx-cell.p2{border-color:var(--gold);background:linear-gradient(180deg,rgba(246,196,83,.12),rgba(246,196,83,.02))}
+.mx-cell.p2 .mx-t{color:var(--gold)}
+.mx-cell.p3{border-color:var(--accent);background:linear-gradient(180deg,rgba(76,141,255,.12),rgba(76,141,255,.02))}
+.mx-cell.p3 .mx-t{color:var(--accent)}
+
+.metric-list{display:flex;flex-direction:column;gap:10px}
+.metric{display:flex;align-items:center;gap:14px;padding:13px 16px;background:var(--surface-3);border:1px solid var(--border);border-radius:11px}
+.metric .mi{font-family:var(--mono);font-weight:800;color:var(--accent-2);width:26px;flex-shrink:0;font-size:16px}
+.metric .mt{font-size:16.5px;font-weight:700;color:var(--text)}
+.metric .md{font-size:14px;color:var(--text-3);margin-left:auto}
+
+/* ---------- 打印 ---------- */
+@media print{
+  body{overflow:visible;background:#fff}
+  .topbar,.footer,.progress,.bg-glow,.bg-grid{display:none!important}
+  .deck{position:static;height:auto;perspective:none}
+  .slide,.slide.prev,.slide.active{position:relative;opacity:1!important;visibility:visible!important;transform:none!important;height:auto;min-height:100vh;page-break-after:always;overflow:visible;padding:40px 48px}
+  .slide:last-child{page-break-after:auto}
+  .slide .rise{opacity:1!important;animation:none!important}
+  body{color:#111}
+}
+</style>
+</head>
+<body>
+<div class="bg-glow"></div>
+<div class="bg-grid"></div>
+
+<!-- ============ 顶栏 ============ -->
+<div class="topbar">
+  <div class="brand">
+    <span class="brand-mark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1"/><circle cx="12" cy="12" r="3.4"/></svg></span>
+    自选异动监测
+    <span class="brand-sub">AI 管家 · 1.0 动态演示</span>
+  </div>
+  <div class="topbar-right">
+    <div class="timer" id="timer" title="点击暂停/继续 · 双击归零">
+      <span class="dot" id="timerDot"></span>
+      <span id="timerText">00:00</span>
+      <small id="timerState">进行中</small>
+    </div>
+    <button class="hint-btn" id="btnNotes" title="显示讲稿">N 讲稿</button>
+    <button class="hint-btn" id="btnOverview" title="总览">O 总览</button>
+    <button class="hint-btn" id="btnHelp" title="快捷键">? 帮助</button>
+    <button class="hint-btn" id="btnFull" title="全屏">F 全屏</button>
+  </div>
+</div>
+<div class="progress"><div class="progress-fill" id="progressFill"></div></div>
+
+<!-- ============ 幻灯片 ============ -->
+<div class="deck" id="deck">
+
+  <!-- 页1 · 封面 -->
+  <section class="slide" data-title="封面 · 自选异动监测" data-part="封面">
+    <div class="slide-inner">
+      <div class="hero">
+        <div class="kicker rise">D 组 · 自选异动监测 AI 管家</div>
+        <div class="hero-big rise" style="animation-delay:.08s">自选异动监测<br>—— <span class="hl">AI 管家</span></div>
+        <div class="morph rise" style="animation-delay:.16s">
+          <span class="ms from">重大事件「被看见」</span>
+          <span class="arrow">➜</span>
+          <span class="ms to">走向「被理解」</span>
+        </div>
+        <div class="team rise" style="animation-delay:.26s">
+          <div class="scene-chip"><span class="ic"><b>👤</b></span>吴浩然</div>
+          <div class="scene-chip"><span class="ic"><b>👤</b></span>寇家辉</div>
+          <div class="scene-chip"><span class="ic"><b>👤</b></span>曾子晖</div>
+          <div class="scene-chip"><span class="ic"><b>👤</b></span>陈锐朋</div>
+          <div class="scene-chip"><span class="ic"><b>👤</b></span>伍宸菲</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 页2 · 问题引入 -->
+  <section class="slide" data-title="问题引入 · 开场三问" data-part="02 问题引入">
+    <div class="slide-inner">
+      <div class="kicker rise">Part 02 · 问题引入</div>
+      <div class="slide-title rise" style="animation-delay:.05s">三个问题，<span class="hl">先别急着回答</span></div>
+      <div class="slide-sub rise" style="animation-delay:.1s">典型用户只有碎片时间。现有产品完成了事件曝光，却把关联、影响和查证留给了用户自己。</div>
+      <div class="slide-body">
+        <div class="grid cols-3" style="align-items:stretch;flex:1">
+          <div class="q-card rise" style="animation-delay:.18s">
+            <span class="qn">QUESTION 01</span>
+            <div class="qt">昨天一天，<br>你的自选股发生了什么？</div>
+            <div class="qd">你可能答不上来——重要信息淹没在每天几百条推送里。</div>
+            <span class="qmark">？</span>
+          </div>
+          <div class="q-card rise" style="animation-delay:.28s">
+            <span class="qn">QUESTION 02</span>
+            <div class="qt">如何提前洞悉<br>自选标的风险？</div>
+            <div class="qd">日历事件提前 6 天就已公开，只是没人替你盯着。</div>
+            <span class="qmark">？</span>
+          </div>
+          <div class="q-card rise" style="animation-delay:.38s">
+            <span class="qn">QUESTION 03</span>
+            <div class="qt">信息背后的风险，<br>和我有什么关系？</div>
+            <div class="qd">新闻说了「发生了什么」，却没解释「影响几何」。</div>
+            <span class="qmark">？</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 页3 · 市场分析 -->
+  <section class="slide" data-title="市场分析 · 现有产品与空白" data-part="03 市场分析">
+    <div class="slide-inner">
+      <div class="kicker rise">Part 03 · 市场分析</div>
+      <div class="slide-title rise" style="animation-delay:.05s">市场把事件送到用户面前，<span class="hl">却没有送达影响</span></div>
+      <div class="slide-body">
+        <div class="grid cols-3 rise" style="animation-delay:.14s">
+          <div class="prod-card" data-prod="行情终端">
+            <div class="pc-ic">📈</div>
+            <div class="pc-name">行情终端</div>
+            <div class="pc-adv">覆盖广 · 提醒快</div>
+            <div class="pc-out">输出：<b>价格异动</b></div>
+            <div class="pc-gap">只报「跌了」，不解释「为什么、影响我什么」</div>
+          </div>
+          <div class="prod-card" data-prod="平台型入口">
+            <div class="pc-ic">📱</div>
+            <div class="pc-name">平台型入口</div>
+            <div class="pc-adv">触达强 · 使用便捷</div>
+            <div class="pc-out">输出：<b>资讯事件</b></div>
+            <div class="pc-gap">事件与「我的自选股」是割裂的两张皮</div>
+          </div>
+          <div class="prod-card" data-prod="券商 AI">
+            <div class="pc-ic">🤖</div>
+            <div class="pc-name">券商 AI</div>
+            <div class="pc-adv">账户关联更深</div>
+            <div class="pc-out">输出：<b>账户预警</b></div>
+            <div class="pc-gap">偏持仓与交易，不解释事件影响链条</div>
+          </div>
+        </div>
+        <div class="gap-box rise" style="animation-delay:.24s">
+          <div class="gap-head">共同空白 · 三类产品的交集之外</div>
+          <div class="chain">
+            <div class="chain-node"><div class="cn-h">重大事件</div><div class="cn-d">解禁 / 数据发布 / 政策</div></div>
+            <div class="chain-arrow">➜</div>
+            <div class="chain-node ok"><div class="cn-h">✓ 发生了什么</div><div class="cn-d">已有：行情终端 / 平台入口</div></div>
+            <div class="chain-arrow">➜</div>
+            <div class="chain-node ok"><div class="cn-h">✓ 是否关联</div><div class="cn-d">部分：券商 AI 账户维度</div></div>
+            <div class="chain-arrow">➜</div>
+            <div class="chain-node miss"><div class="cn-h">✗ 将如何影响</div><div class="cn-d">无人回答 · 我的自选股</div></div>
+          </div>
+        </div>
+        <div class="quote rise" style="animation-delay:.34s">
+          <div class="q">市场竞争的下一步，不是「更多信息」，而是「更好的影响解释」。</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 页4 · 核心痛点 -->
+  <section class="slide" data-title="核心痛点" data-part="04 核心痛点">
+    <div class="slide-inner">
+      <div class="kicker rise">Part 04 · 核心痛点</div>
+      <div class="slide-title rise" style="animation-delay:.05s">解决了「有没有」「是否相关」，<span class="hl">漏掉了「会怎样影响」</span></div>
+      <div class="slide-body">
+        <div class="card rise" style="animation-delay:.14s">
+          <p class="lead">现有产品解决了「重大事件<b>有没有发生</b>」和「事件<b>是否与自选股有关</b>」的问题，但没有建立两者的联系，来解释「重大事件<b>会怎样影响我的自选股</b>」的问题。</p>
+        </div>
+        <div class="pain-steps rise" style="animation-delay:.24s;margin-top:20px">
+          <div class="pain-step done">
+            <div class="ps-no">STEP 01</div>
+            <div class="ps-q">重大事件<br>有没有发生？</div>
+            <div class="ps-s">✓ 已解决 · 行情 / 资讯覆盖</div>
+          </div>
+          <div class="pain-step done">
+            <div class="ps-no">STEP 02</div>
+            <div class="ps-q">事件是否与<br>我的自选股有关？</div>
+            <div class="ps-s">✓ 部分解决 · 券商 AI 账户维度</div>
+          </div>
+          <div class="pain-step miss">
+            <div class="ps-no">STEP 03</div>
+            <div class="ps-q">事件会怎样<br>影响我的自选股？</div>
+            <div class="ps-s">✗ 缺失 · 无人建立这层联系</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 页5 · 功能定位 -->
+  <section class="slide" data-title="功能定位" data-part="05 功能定位">
+    <div class="slide-inner">
+      <div class="kicker rise">Part 05 · 功能定位</div>
+      <div class="slide-title rise" style="animation-delay:.05s">功能定位</div>
+      <div class="slide-body">
+        <div class="grid vs-grid rise" style="animation-delay:.14s;flex:1;align-items:stretch">
+          <div class="vs not">
+            <span class="vs-tag">✗ 不是</span>
+            <div class="vs-h">向用户<span class="m">推送更多信息</span>，<br>让用户<span class="m">看到更多重大事件</span></div>
+            <ul>
+              <li>继续堆信息量，制造信息过载</li>
+              <li>把「理解影响」的功课留给用户</li>
+            </ul>
+          </div>
+          <div class="vs is">
+            <span class="vs-tag">✓ 而是</span>
+            <div class="vs-h">帮助用户<span class="hl-ok">理解重大事件将如何影响自己的自选股</span>，并<span class="hl-ok">提前识别</span>值得关注的潜在风险</div>
+            <ul>
+              <li>建立「事件 → 自选股 → 影响」的解释链路</li>
+              <li>在值得被打扰的时候，只打扰这一次</li>
+            </ul>
+          </div>
+        </div>
+        <div class="quote rise" style="animation-delay:.26s">
+          <div class="q">不是推送更多，而是解释更好——把「影响」而不是「数量」交到用户手上。</div>
+          <div class="a">V1.0 先验证影响解释价值，V1.5 增强问答，V2.0 再做个性化风险管理。</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 页6 · 产品功能展示 · 发布演示 -->
+  <section class="slide" data-title="产品功能展示 · 发布演示" data-part="06 产品功能展示" data-demo="demo6">
+    <div class="slide-inner">
+      <div class="kicker rise">Part 06 · 产品功能展示</div>
+      <div class="slide-title rise" style="animation-delay:.05s">自选异动管家 · <span class="hl">发布演示</span></div>
+      <div class="slide-sub rise" style="animation-delay:.1s">一级页面解决优先级判断：用户先看风险，而不是先看资讯数量。</div>
+      <div class="slide-body">
+        <div class="grid cols-2 rise" style="animation-delay:.16s;align-items:stretch;flex:1">
+          <div class="card">
+            <h3>异动卡片流 <span class="pill ghost" style="font-weight:400">演示 · 点击卡片</span></h3>
+            <div id="cardFlow" style="display:flex;flex-direction:column;gap:10px"></div>
+          </div>
+          <div class="card">
+            <h3 id="detailName">详情四段式 <span class="pill ghost" style="font-weight:400">事实 / 推断分区</span></h3>
+            <div class="four-seg" id="detailSeg"></div>
+            <div class="evidence">
+              <div class="ev-t">📎 证据链 · 可溯源</div>
+              <div class="ev-s" id="detailSrc"></div>
+            </div>
+          </div>
+        </div>
+        <div class="note rise" style="animation-delay:.26s"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 8v4M12 16h.01"/></svg><span>行情、事件与风险等级均为<b>演示模拟</b>，非真实市场数据。核验闸门只做归因判定、不做归因背书。</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 页7 · 风险矩阵与产品评估 -->
+  <section class="slide" data-title="风险矩阵与产品评估" data-part="07 风险矩阵">
+    <div class="slide-inner">
+      <div class="kicker rise">Part 07 · 风险矩阵</div>
+      <div class="slide-title rise" style="animation-delay:.05s">风险矩阵 + <span class="hl">产品评估</span></div>
+      <div class="slide-body">
+        <div class="grid cols-2 rise" style="animation-delay:.14s;align-items:stretch;flex:1">
+          <div class="card">
+            <h3>风险矩阵 · 高影响风险优先治理</h3>
+            <div class="matrix">
+              <div class="corner"></div>
+              <div class="ax-x">低概率</div>
+              <div class="ax-x">高概率</div>
+              <div class="ax-y">高影响</div>
+              <div class="mx-cell p2"><div class="mx-t">漏报</div><div class="mx-d">错过关键风险，事后损失最大</div></div>
+              <div class="mx-cell p1"><div class="mx-t">合规</div><div class="mx-d">监管红线，架构层内置四红线</div></div>
+              <div class="ax-y">低影响</div>
+              <div class="mx-cell" style="opacity:.55"><div class="mx-t">信号噪声</div><div class="mx-d">低优先 · 折叠不打扰</div></div>
+              <div class="mx-cell p3"><div class="mx-t">误报</div><div class="mx-d">打扰与信任流失，自动降级</div></div>
+            </div>
+            <div class="note"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l8 4v5c0 5-3.5 8-8 9-4.5-1-8-4-8-9V7l8-4z"/></svg><span>以<b>信任</b>而非<b>推送量</b>为第一目标——优先治理误报、漏报、合规三类高影响风险。</span></div>
+          </div>
+          <div class="card">
+            <h3>产品评估与评测</h3>
+            <div class="metric-list">
+              <div class="metric"><span class="mi">①</span><span class="mt">功能渗透率</span><span class="md">核心功能被多少人真正用起来</span></div>
+              <div class="metric"><span class="mi">②</span><span class="mt">推送实际打开率</span><span class="md">信噪比本身，就是付费点</span></div>
+              <div class="metric"><span class="mi">③</span><span class="mt">使用前后腾讯自选股留存 / 日活</span><span class="md">宿主内留存与活跃变化</span></div>
+              <div class="metric"><span class="mi">④</span><span class="mt">用户评价率</span><span class="md">口碑与信任的代理指标</span></div>
+            </div>
+            <div class="quote" style="margin-top:16px">
+              <div class="q">衡量我们的不是发了多少条，是用户有没有真正躲过一次风险。</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<!-- ============ 页脚 ============ -->
+<div class="footer">
+  <button class="nav-btn" id="prevBtn" title="上一页 ←"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></button>
+  <div class="counter"><b id="curNo">01</b> / <span id="totalNo">07</span></div>
+  <div class="dots" id="dots"></div>
+  <div class="counter" id="partLabel" style="color:var(--text-3)">封面</div>
+  <button class="nav-btn" id="nextBtn" title="下一页 →"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></button>
+</div>
+
+<!-- ============ 浮层：总览 ============ -->
+<div class="overlay" id="ovOverlay">
+  <div class="overlay-panel">
+    <div class="overlay-head"><h2>总览</h2><button class="overlay-close" data-close>✕</button></div>
+    <div class="ov-grid" id="ovGrid"></div>
+  </div>
+</div>
+
+<!-- ============ 浮层：讲稿 ============ -->
+<div class="overlay" id="notesOverlay">
+  <div class="overlay-panel" style="max-width:760px">
+    <div class="overlay-head"><h2>讲稿 · <span id="notesTitle"></span></h2><button class="overlay-close" data-close>✕</button></div>
+    <div class="notes-body" id="notesBody"></div>
+  </div>
+</div>
+
+<!-- ============ 浮层：帮助 ============ -->
+<div class="overlay" id="helpOverlay">
+  <div class="overlay-panel" style="max-width:620px">
+    <div class="overlay-head"><h2>快捷键</h2><button class="overlay-close" data-close>✕</button></div>
+    <div class="help-grid">
+      <div class="help-row"><span class="k"><kbd>←</kbd><kbd>→</kbd><kbd>空格</kbd></span><span>上一页 / 下一页</span></div>
+      <div class="help-row"><span class="k"><kbd>Home</kbd><kbd>End</kbd></span><span>跳到首 / 尾页</span></div>
+      <div class="help-row"><span class="k"><kbd>O</kbd></span><span>打开总览</span></div>
+      <div class="help-row"><span class="k"><kbd>N</kbd></span><span>显示讲稿</span></div>
+      <div class="help-row"><span class="k"><kbd>F</kbd></span><span>全屏</span></div>
+      <div class="help-row"><span class="k"><kbd>Esc</kbd></span><span>关闭浮层</span></div>
+      <div class="help-row"><span class="k"><kbd>?</kbd></span><span>查看帮助</span></div>
+      <div class="help-row"><span class="k"><kbd>点击计时器</kbd></span><span>暂停 / 继续 · 双击归零</span></div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   演示数据（全部为虚构 / 模拟）
+   ============================================================ */
+const DETAILS = {
+  '宁德时代':{
+    level:'high', gate:'数据背离型', code:'300750', src:'电池联盟 / SMM · 9/11',
+    seg:[
+      {c:'fact',  h:'发生了什么', b:'9/12 14:32 跌幅 <b>-4.21%</b>、量比 3.1，触发 A 股 ±4% 阈值进入识别。'},
+      {c:'fact',  h:'为什么触发', b:'8 月装车量同比 <b>+32%</b>（电池联盟）、碳酸锂周跌 <b>3.2%</b>（SMM，成本端利好）——行业事实向好。'},
+      {c:'infer', h:'影响几何',   b:'股价下行与行业量价事实<b>背离</b>，降一级并说明不确定性；叠加 9/18 解禁临近。'},
+      {c:'warn',  h:'建议关注',   b:'解禁落地与实际减持、量价是否修复、装车量与碳酸锂价边际变化。'}
+    ]
+  },
+  '中芯国际':{
+    level:'high', gate:'利好兑现型', code:'688981', src:'SIA / 财经媒体 · 9/12',
+    seg:[
+      {c:'fact',  h:'发生了什么', b:'高位放量，90 日价格分位 <b>92%</b>，融资余额单周 +18%。'},
+      {c:'fact',  h:'为什么触发', b:'利好数据已发布 7 日、当日无新增事实，属<b>情绪补涨</b>。'},
+      {c:'infer', h:'影响几何',   b:'高位 + 放量属典型情绪透支形态，需留意技术过热。'},
+      {c:'warn',  h:'建议关注',   b:'量能是否回落、换手率分位、融资余额边际变化。'}
+    ]
+  },
+  '比亚迪':{
+    level:'high', gate:'事件驱动型', code:'002594', src:'公司公告（S1）· 9/11',
+    seg:[
+      {c:'fact',  h:'发生了什么', b:'8 月销量 <b>37.3 万辆</b>、同比 +21%，公告与异动直接对应。'},
+      {c:'fact',  h:'为什么触发', b:'异动与同日公告<b>直接对应</b>，S1 一手来源直接采信。'},
+      {c:'infer', h:'影响几何',   b:'归因可信度高，事件驱动、方向明确。'},
+      {c:'warn',  h:'建议关注',   b:'月度销量与渗透率的持续性。'}
+    ]
+  },
+  '隆基绿能':{
+    level:'mid', gate:'数据印证型', code:'601012', src:'国家能源局 / PVInfoLink · 9/11',
+    seg:[
+      {c:'fact',  h:'发生了什么', b:'装机同比 <b>-12%</b> + 组件周跌 2.1%。'},
+      {c:'fact',  h:'为什么触发', b:'异动方向与权威数据<b>同向</b>，趋势确认。'},
+      {c:'infer', h:'影响几何',   b:'需求走弱与价格下行的趋势被数据印证。'},
+      {c:'warn',  h:'建议关注',   b:'组件价格与招标价的下行斜率。'}
+    ]
+  },
+  '腾讯控股':{
+    level:'low', gate:'无事实', code:'00700', src:'行情快照 · 9/12',
+    seg:[
+      {c:'fact',  h:'发生了什么', b:'行情面异动，行业暂无映射覆盖。'},
+      {c:'fact',  h:'为什么触发', b:'30 天内<b>无可溯源数据</b>，仅报异动、不归因。'},
+      {c:'infer', h:'影响几何',   b:'不归因——不编造「影响解释」。'},
+      {c:'warn',  h:'建议关注',   b:'待行业映射补齐后启用归因。'}
+    ]
+  }
+};
+
+const NOTES = {
+  0:{t:'封面 · 自选异动监测', s:[
+    '<b>一句话项目：</b>本项目聚焦一个明确问题——用户看得见重大事件，却不知道事件将如何影响自己的自选股。',
+    '<b>主线：</b>从「被看见」到「被理解」；团队分工后进入下一页开场三问。'
+  ]},
+  1:{t:'问题引入 · 开场三问', s:[
+    '<b>先抛问题：</b>典型用户只有碎片时间，现有产品完成了事件曝光，却把关联、影响和查证留给用户。',
+    '<b>节奏：</b>三个问题逐卡出现，停顿制造代入感，别急着讲产品。'
+  ]},
+  2:{t:'市场分析 · 现有产品与空白', s:[
+    '<b>三类产品：</b>行情终端（价格异动）、平台入口（资讯事件）、券商 AI（账户预警），各说一句能做什么。',
+    '<b>共同空白：</b>点出三类产品都没有稳定解决「事件 → 自选股影响」的解释链路。',
+    '<b>金句：</b>「不是更多信息，而是更好的影响解释。」'
+  ]},
+  3:{t:'核心痛点', s:[
+    '<b>核心价值由 P0 决定：</b>解释事件将如何影响用户自己的自选股。',
+    '<b>三步法：</b>有没有发生 → 是否相关 → 会怎样影响，前两步已有、第三步缺失。'
+  ]},
+  4:{t:'功能定位', s:[
+    '<b>不是 / 而是：</b>先否掉「推送更多信息」，再立起「理解影响 + 提前识别」。',
+    '<b>路线图一句带过：</b>V1.0 先验证影响解释价值，V1.5 增强问答，V2.0 再做个性化风险管理。'
+  ]},
+  5:{t:'产品功能展示 · 发布演示', s:[
+    '<b>现场演示：</b>点击左侧异动卡片流，右侧详情四段式同步切换。',
+    '<b>要点：</b>一级页面先解决优先级判断——用户先看风险，而不是先看资讯数量。',
+    '<b>边界：</b>行情与事件为演示模拟；闸门只做归因判定、不做归因背书。'
+  ]},
+  6:{t:'风险矩阵与产品评估', s:[
+    '<b>风险矩阵：</b>优先治理误报、漏报和合规三类高影响风险，以信任而非推送量为第一目标。',
+    '<b>评估指标：</b>功能渗透率、推送实际打开率、使用前后腾讯自选股留存/日活、用户评价率。'
+  ]}
+};
+
+/* ============================================================
+   Deck 控制器
+   ============================================================ */
+const slides = Array.from(document.querySelectorAll('.slide'));
+const total = slides.length;
+let cur = 0;
+
+const $ = s => document.querySelector(s);
+const deck = $('#deck'), dotsWrap = $('#dots');
+
+slides.forEach((s, i) => {
+  const b = document.createElement('button');
+  b.className = 'dot'; b.title = (i+1) + ' · ' + s.dataset.title;
+  b.addEventListener('click', () => go(i));
+  dotsWrap.appendChild(b);
+});
+const dotEls = Array.from(dotsWrap.children);
+
+function go(i){
+  if(i < 0 || i >= total || i === cur){ if(i===cur) refresh(); return; }
+  slides[cur].classList.remove('active');
+  const dir = i > cur;
+  slides[i].classList.add('active');
+  if(dir) slides[cur].classList.add('prev');
+  else slides[i].classList.remove('prev');
+  cur = i;
+  refresh();
+}
+function refresh(){
+  slides.forEach((s,idx)=>{ s.classList.toggle('active', idx===cur); s.classList.toggle('prev', idx<cur); });
+  dotEls.forEach((d,idx)=> d.classList.toggle('active', idx===cur));
+  $('#curNo').textContent = String(cur+1).padStart(2,'0');
+  $('#totalNo').textContent = String(total).padStart(2,'0');
+  $('#progressFill').style.width = ((cur+1)/total*100) + '%';
+  $('#partLabel').textContent = slides[cur].dataset.part;
+  $('#notesTitle').textContent = slides[cur].dataset.title;
+  renderNotes(cur);
+  initDemo(slides[cur]);
+  fitSlide(slides[cur]);
+}
+
+function fitSlide(slide){
+  const inner = slide.querySelector('.slide-inner');
+  if(!inner) return;
+  inner.style.transform = '';
+  const avail = inner.clientHeight;
+  const used = inner.scrollHeight;
+  if(avail > 0 && used > avail + 2){
+    const s = Math.min(1, avail / used);
+    inner.style.transform = 'scale(' + Math.max(0.6, s).toFixed(4) + ')';
+  }
+}
+function renderNotes(i){
+  const n = NOTES[i]; if(!n){ $('#notesBody').innerHTML = ''; return; }
+  $('#notesBody').innerHTML = n.s.map(x => '<div class="seg">'+x+'</div>').join('');
+}
+
+/* 键盘 */
+document.addEventListener('keydown', e => {
+  if(e.key==='ArrowRight' || e.key===' ' || e.key==='PageDown'){ e.preventDefault(); go(cur+1); }
+  else if(e.key==='ArrowLeft' || e.key==='PageUp'){ e.preventDefault(); go(cur-1); }
+  else if(e.key==='Home'){ e.preventDefault(); go(0); }
+  else if(e.key==='End'){ e.preventDefault(); go(total-1); }
+  else if(e.key==='o' || e.key==='O'){ toggleOverlay('ovOverlay'); }
+  else if(e.key==='n' || e.key==='N'){ toggleOverlay('notesOverlay'); }
+  else if(e.key==='f' || e.key==='F'){ toggleFull(); }
+  else if(e.key==='Escape'){ closeOverlays(); }
+  else if(e.key==='?'){ toggleOverlay('helpOverlay'); }
+});
+$('#prevBtn').addEventListener('click', ()=>go(cur-1));
+$('#nextBtn').addEventListener('click', ()=>go(cur+1));
+
+/* 点击空白翻页 */
+deck.addEventListener('click', e => {
+  if(e.target.closest('.prod-card') || e.target.closest('button') || e.target.closest('summary') || e.target.closest('details') || e.target.closest('input') || e.target.closest('label') || e.target.closest('.fs-item') || e.target.closest('.event-card')) return;
+  go(cur+1);
+});
+
+/* ---------- 浮层 ---------- */
+function toggleOverlay(id){ const o = $('#'+id); o.classList.contains('show') ? o.classList.remove('show') : (closeOverlays(), o.classList.add('show')); }
+function closeOverlays(){ document.querySelectorAll('.overlay').forEach(o=>o.classList.remove('show')); }
+document.querySelectorAll('[data-close]').forEach(b=>b.addEventListener('click', closeOverlays));
+document.querySelectorAll('.overlay').forEach(o=>o.addEventListener('click', e=>{ if(e.target===o) o.classList.remove('show'); }));
+$('#btnNotes').addEventListener('click', ()=>toggleOverlay('notesOverlay'));
+$('#btnOverview').addEventListener('click', ()=>toggleOverlay('ovOverlay'));
+$('#btnHelp').addEventListener('click', ()=>toggleOverlay('helpOverlay'));
+$('#btnFull').addEventListener('click', toggleFull);
+function toggleFull(){ document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen(); }
+
+/* 总览网格 */
+const ovGrid = $('#ovGrid');
+slides.forEach((s,i)=>{
+  const d = document.createElement('div');
+  d.className = 'ov-item' + (i===cur?' active':'');
+  d.innerHTML = '<div class="no">'+String(i+1).padStart(2,'0')+'</div><div class="t">'+s.dataset.title+'</div><div class="s">'+s.dataset.part+'</div>';
+  d.addEventListener('click', ()=>{ closeOverlays(); go(i); });
+  ovGrid.appendChild(d);
+});
+
+/* ---------- 计时器 ---------- */
+let timerSec = 0, timerRun = true, timerIv = setInterval(()=>{ if(timerRun){ timerSec++; paintTimer(); } }, 1000);
+function paintTimer(){
+  const m = String(Math.floor(timerSec/60)).padStart(2,'0'), s = String(timerSec%60).padStart(2,'0');
+  $('#timerText').textContent = m+':'+s;
+}
+const timerEl = $('#timer');
+timerEl.addEventListener('click', ()=>{ timerRun = !timerRun; timerEl.classList.toggle('paused', !timerRun); $('#timerState').textContent = timerRun?'进行中':'已暂停'; });
+timerEl.addEventListener('dblclick', ()=>{ timerSec = 0; paintTimer(); });
+
+/* ---------- 页3 · 产品卡交互 ---------- */
+document.querySelectorAll('.prod-card').forEach(c => {
+  c.addEventListener('click', () => {
+    const was = c.classList.contains('active');
+    document.querySelectorAll('.prod-card').forEach(x => x.classList.remove('active'));
+    if(!was) c.classList.add('active');
+  });
+});
+
+/* ============================================================
+   Demo 交互
+   ============================================================ */
+function initDemo(slide){
+  const key = slide.dataset.demo;
+  if(!key) return;
+  if(key==='demo6' && !slide._demo6Init){ slide._demo6Init = true; initDemo6(); }
+}
+
+/* 页6 · 异动卡片流 + 详情四段式 */
+function initDemo6(){
+  const flow = $('#cardFlow');
+  const order = {high:0, mid:1, low:2};
+  const items = Object.entries(DETAILS).map(([name,d]) => ({name, ...d}));
+  items.sort((a,b)=>order[a.level]-order[b.level]);
+
+  function renderSeg(d){
+    const seg = d.seg.map((x,i)=>
+      '<div class="fs-item '+x.c+'">'+
+        '<span class="no">'+String.fromCharCode(65+i)+'</span>'+
+        '<div><div class="h">'+x.h+'</div><div class="b">'+x.b+'</div></div></div>'
+    ).join('');
+    $('#detailSeg').innerHTML = seg;
+    $('#detailSrc').textContent = '来源：' + d.src;
+    $('#detailName').innerHTML = d.name + ' <span style="color:var(--text-3);font-family:var(--mono);font-size:14px;font-weight:400">' + d.code + '</span>' +
+      ' <span class="pill ' + d.level + '" style="font-weight:400;margin-left:auto">' +
+      ({high:'高风险',mid:'中风险',low:'低风险'})[d.level] + ' · ' + d.gate + '</span>';
+  }
+
+  items.forEach(it => {
+    const c = document.createElement('div');
+    c.className = 'event-card ' + it.level;
+    c.innerHTML = '<div class="top"><span class="tag '+it.level+'">'+({high:'高',mid:'中',low:'低'})[it.level]+'</span><span class="nm">'+it.name+'</span><span class="cd">'+it.code+'</span><span class="pill ghost" style="margin-left:auto">闸门 · '+it.gate+'</span></div><div class="ev">'+it.seg[2].b.replace(/<[^>]+>/g,'')+'</div><div class="meta"><span class="src">'+it.src+'</span></div>';
+    c.addEventListener('click', ()=>{
+      flow.querySelectorAll('.event-card').forEach(x=>x.classList.remove('selected'));
+      c.classList.add('selected');
+      renderSeg(it);
+    });
+    flow.appendChild(c);
+  });
+  flow.querySelector('.event-card').classList.add('selected');
+  renderSeg(items[0]);
+}
+
+/* ============================================================
+   启动
+   ============================================================ */
+window.addEventListener('resize', ()=>{ fitSlide(slides[cur]); });
+let fitRaf = 0;
+const fitObs = new MutationObserver(()=>{
+  if(fitRaf) return;
+  fitRaf = requestAnimationFrame(()=>{ fitRaf = 0; fitSlide(slides[cur]); });
+});
+fitObs.observe(deck, {subtree:true, childList:true, attributes:true, attributeFilter:['class']});
+go(0);
+</script>
+</body>
+</html>
